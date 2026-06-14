@@ -400,3 +400,5 @@ dist
 .serverless/**/*.zip
 node_modules/
 dist/
+
+/generated/prisma
