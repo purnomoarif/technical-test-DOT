@@ -172,7 +172,8 @@ The API will be available at `http://localhost:3000`.
 
 The full API documentation is available as a **Postman Collection**.
 
-📄 **[Import Postman Collection](<link-to-your-postman-collection>)**
+📄 **[Import Postman Collection](https://purnomoarifdepok-7909888.postman.co/workspace/purnomo-arif's-Workspace~b86893af-d870-44ba-87d6-c7efccd247cf/collection/48193184-37554ea4-1166-4351-825a-d2cdb62be67c?action=share&creator=48193184)**
+)**
 
 ### Endpoint Summary
 
