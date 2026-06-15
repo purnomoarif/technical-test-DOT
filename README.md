@@ -1,99 +1,247 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# REST API — NestJS + PostgreSQL
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A RESTful API built with NestJS and TypeScript, featuring JWT authentication and two related CRUD resources: **Users** and **Posts**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Tech Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Layer | Technology |
+|---|---|
+| Framework | [NestJS](https://nestjs.com/) (Node.js + TypeScript) |
+| Database | PostgreSQL |
+| ORM | TypeORM |
+| Authentication | JWT (JSON Web Token) via `@nestjs/jwt` & `passport-jwt` |
+| Validation | `class-validator` & `class-transformer` |
+| Testing | Jest + Supertest (E2E) |
+| API Docs | Postman Collection |
 
-## Project setup
+---
 
-```bash
-$ npm install
+## Project Structure
+
+```
+src/
+├── auth/                        # Authentication module
+│   ├── dto/
+│   │   ├── login.dto.ts
+│   │   └── register.dto.ts
+│   ├── strategies/
+│   │   └── jwt.strategy.ts      # Passport JWT strategy
+│   ├── guards/
+│   │   └── jwt-auth.guard.ts    # JWT Guard decorator
+│   ├── auth.controller.ts       # POST /auth/register, POST /auth/login
+│   ├── auth.module.ts
+│   └── auth.service.ts
+│
+├── users/                       # User module (CRUD)
+│   ├── dto/
+│   │   ├── create-user.dto.ts
+│   │   └── update-user.dto.ts
+│   ├── entities/
+│   │   └── user.entity.ts       # TypeORM entity
+│   ├── users.repository.ts      # Database query logic
+│   ├── users.controller.ts      # GET/POST/PATCH/DELETE /users
+│   ├── users.module.ts
+│   └── users.service.ts
+│
+├── posts/                       # Post module (CRUD, related to User)
+│   ├── dto/
+│   │   ├── create-post.dto.ts
+│   │   └── update-post.dto.ts
+│   ├── entities/
+│   │   └── post.entity.ts       # TypeORM entity (FK → user)
+│   ├── posts.repository.ts
+│   ├── posts.controller.ts      # GET/POST/PATCH/DELETE /posts
+│   ├── posts.module.ts
+│   └── posts.service.ts
+│
+├── app.module.ts                # Root module
+└── main.ts                      # Entry point
+
+test/
+└── auth.e2e-spec.ts             # E2E tests for JWT token flow
 ```
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## Why Modular Layered Architecture?
 
-# watch mode
-$ npm run start:dev
+This project uses a **Modular + Repository Pattern**, which is a combination of two principles that work naturally with NestJS.
 
-# production mode
-$ npm run start:prod
+### Modular Pattern
+
+Every feature (auth, users, posts) lives inside its own self-contained **Module**. Each module owns its own Controller, Service, Repository, DTOs, and Entity. This means:
+
+- Removing a feature = deleting one folder, nothing else breaks.
+- Adding a feature = creating a new folder, without touching existing code.
+- Dependencies between modules are explicit and declared via `imports:[]` in the module file.
+
+### Layered Architecture (within each module)
+
+Each module is internally divided into three layers with strict responsibilities:
+
+```
+HTTP Request
+     ↓
+JWT Guard          → Validates and decodes the token. Protects routes.
+     ↓
+Controller         → Receives HTTP request, parses input, returns HTTP response.
+                     Does NOT contain business logic.
+     ↓
+Service            → Contains all business logic.
+                     Does NOT know about HTTP or SQL.
+     ↓
+Repository         → Handles all database queries via TypeORM.
+                     The only layer allowed to interact with the database.
+     ↓
+PostgreSQL DB
 ```
 
-## Run tests
+### Why this combination?
+
+**Separation of Concerns** — each layer has exactly one job. If an HTTP status code needs to change, only the Controller is touched. If a SQL query needs to be optimised, only the Repository is touched. The Service is never affected by either change.
+
+**Testability** — because the Repository is a separate injectable class, it can be mocked in tests. E2E tests and unit tests can run without a real database connection by swapping out the Repository with a mock.
+
+**Scalability** — if the project grows and TypeORM needs to be replaced with Prisma or another ORM, only the Repository files need to be rewritten. The Service and Controller are completely unaffected.
+
+**NestJS-native** — NestJS is built around modules and dependency injection. This pattern aligns directly with how the framework is designed, which means less boilerplate and better IDE/tooling support.
+
+---
+
+## How to Run
+
+### Prerequisites
+
+- Node.js >= 18
+- PostgreSQL >= 14
+- npm or yarn
+
+### 1. Clone the repository
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+git clone <your-repo-url>
+cd <project-folder>
+npm install
 ```
 
-## Deployment
+### 2. Configure environment variables
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Create a `.env` file at the project root:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+```env
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+DB_DATABASE=nestjs_db
+
+# JWT
+JWT_SECRET=your_super_secret_key
+JWT_EXPIRES_IN=3600s
+```
+
+### 3. Set up the database
+
+Create the database in PostgreSQL:
+
+```sql
+CREATE DATABASE nestjs_db;
+```
+
+TypeORM will auto-create the tables on startup (`synchronize: true` in development).
+
+### 4. Run the application
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Development
+npm run start:dev
+
+# Production build
+npm run build
+npm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+The API will be available at `http://localhost:3000`.
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## API Documentation
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+The full API documentation is available as a **Postman Collection**.
 
-## Support
+📄 **[Import Postman Collection](<link-to-your-postman-collection>)**
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### Endpoint Summary
 
-## Stay in touch
+#### Auth
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| POST | `/auth/register` | Register a new user | No |
+| POST | `/auth/login` | Login and get JWT token | No |
 
-## License
+#### Users
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-# technical-test-DOT
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| GET | `/users` | Get all users | Yes |
+| GET | `/users/:id` | Get user by ID | Yes |
+| PATCH | `/users/:id` | Update user | Yes |
+| DELETE | `/users/:id` | Delete user | Yes |
+
+#### Posts
+
+| Method | Endpoint | Description | Auth Required |
+|---|---|---|---|
+| POST | `/posts` | Create a post (tied to logged-in user) | Yes |
+| GET | `/posts` | Get all posts | Yes |
+| GET | `/posts/:id` | Get post by ID | Yes |
+| PATCH | `/posts/:id` | Update post | Yes |
+| DELETE | `/posts/:id` | Delete post | Yes |
+
+### Using the JWT Token
+
+After logging in, copy the `access_token` from the response and pass it in the `Authorization` header for all protected routes:
+
+```
+Authorization: Bearer <your_access_token>
+```
+
+---
+
+## Running E2E Tests
+
+The E2E tests cover the full JWT authentication flow: registering a user, logging in to get a token, and accessing a protected route.
+
+### Run all E2E tests
+
+```bash
+npm run test:e2e
+```
+
+### What is tested
+
+The `test/auth.e2e-spec.ts` file covers:
+
+- `POST /auth/register` — registers a new user and expects HTTP 201
+- `POST /auth/login` — logs in with valid credentials and expects a JWT `access_token` in the response
+- `GET /posts` with a valid token — expects HTTP 200 (protected route accessible)
+- `GET /posts` without a token — expects HTTP 401 (unauthorized)
+- `GET /posts` with an invalid/expired token — expects HTTP 401
+
+### Test environment
+
+E2E tests use a separate test database. Configure the following in `.env.test`:
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+DB_DATABASE=nestjs_test_db
+JWT_SECRET=test_secret
+JWT_EXPIRES_IN=3600s
+```
